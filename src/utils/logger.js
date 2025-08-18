@@ -26,7 +26,7 @@ const consoleFormat = winston.format.combine(
     format: 'HH:mm:ss'
   }),
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
-    let metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
+    const metaStr = Object.keys(meta).length ? JSON.stringify(meta, null, 2) : '';
     return `${timestamp} [${level}]: ${message} ${metaStr}`;
   })
 );
@@ -44,7 +44,7 @@ const logger = winston.createLogger({
       maxFiles: 5,
       tailable: true
     }),
-    
+
     // File transport for error logs only
     new winston.transports.File({
       filename: path.join(logsDir, 'error.log'),

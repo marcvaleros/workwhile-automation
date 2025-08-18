@@ -91,16 +91,22 @@ class WebhookHandler {
 
     switch (eventType) {
     case 'message.received':
-    case 'message.sent':
       requiredFields.push('from', 'to', 'body');
       break;
+    case 'message.sent':
+      requiredFields.push('from', 'to');
+      break;
     case 'call.started':
-    case 'call.ended':
       requiredFields.push('from', 'to', 'direction');
       break;
+    case 'call.ended':
+      // call.ended might not have from/to/direction, just duration and status
+      break;
     case 'contact.created':
-    case 'contact.updated':
       requiredFields.push('name', 'phone');
+      break;
+    case 'contact.updated':
+      // contact.updated might have changes object instead of direct fields
       break;
     }
 
