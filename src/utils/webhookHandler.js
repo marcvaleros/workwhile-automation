@@ -45,6 +45,9 @@ class WebhookHandler {
       case 'call.ended':
         result = await this.handleCallEnded(eventData);
         break;
+      case 'call.completed':
+        result = await this.handleCallCompleted(eventData);
+        break;
       case 'contact.created':
         result = await this.handleContactCreated(eventData);
         break;
@@ -86,6 +89,9 @@ class WebhookHandler {
       return false;
     }
 
+    // For OpenPhone webhooks, the actual data is nested in eventData.object
+    const dataObject = eventData.object || eventData;
+
     // Basic validation for common fields
     const requiredFields = ['id'];
 
@@ -100,7 +106,8 @@ class WebhookHandler {
       requiredFields.push('from', 'to', 'direction');
       break;
     case 'call.ended':
-      // call.ended might not have from/to/direction, just duration and status
+    case 'call.completed':
+      // call.ended/completed might not have from/to/direction, just duration and status
       break;
     case 'contact.created':
       requiredFields.push('name', 'phone');
@@ -110,7 +117,7 @@ class WebhookHandler {
       break;
     }
 
-    return requiredFields.every(field => Object.prototype.hasOwnProperty.call(eventData, field));
+    return requiredFields.every(field => Object.prototype.hasOwnProperty.call(dataObject, field));
   }
 
   /**
@@ -182,12 +189,15 @@ class WebhookHandler {
    * @returns {Promise<Object>} - Processing result
    */
   async handleCallStarted(data) {
+    // For OpenPhone webhooks, the actual call data is in data.object
+    const callData = data.object || data;
+
     logger.info('Processing call started event', {
-      callId: data.id,
-      from: data.from,
-      to: data.to,
-      direction: data.direction,
-      timestamp: data.timestamp
+      callId: callData.id,
+      from: callData.from,
+      to: callData.to,
+      direction: callData.direction,
+      timestamp: callData.createdAt || callData.timestamp
     });
 
     // TODO: Implement your business logic here
@@ -201,7 +211,7 @@ class WebhookHandler {
     return {
       status: 'processed',
       action: 'call_logged',
-      callId: data.id,
+      callId: callData.id,
       processedAt: new Date().toISOString()
     };
   }
@@ -212,11 +222,14 @@ class WebhookHandler {
    * @returns {Promise<Object>} - Processing result
    */
   async handleCallEnded(data) {
+    // For OpenPhone webhooks, the actual call data is in data.object
+    const callData = data.object || data;
+
     logger.info('Processing call ended event', {
-      callId: data.id,
-      duration: data.duration,
-      status: data.status,
-      timestamp: data.timestamp
+      callId: callData.id,
+      duration: callData.duration,
+      status: callData.status,
+      timestamp: callData.completedAt || callData.timestamp
     });
 
     // TODO: Implement your business logic here
@@ -230,7 +243,47 @@ class WebhookHandler {
     return {
       status: 'processed',
       action: 'call_completed',
-      callId: data.id,
+      callId: callData.id,
+      processedAt: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Handle call completed event
+   * @param {Object} data - Call data
+   * @returns {Promise<Object>} - Processing result
+   */
+  async handleCallCompleted(data) {
+    // For OpenPhone webhooks, the actual call data is in data.object
+    const callData = data.object || data;
+
+    logger.info('Processing call completed event', {
+      callId: callData.id,
+      from: callData.from,
+      to: callData.to,
+      direction: callData.direction,
+      status: callData.status,
+      duration: callData.duration,
+      voicemail: callData.voicemail ? 'present' : 'none',
+      timestamp: callData.completedAt || callData.createdAt
+    });
+
+    // TODO: Implement your business logic here
+    // Examples:
+    // - Update call record with completion details
+    // - Process voicemail if present
+    // - Trigger follow-up actions based on call outcome
+    // - Update contact information
+    // - Route to appropriate team member
+
+    await this.simulateProcessing();
+
+    return {
+      status: 'processed',
+      action: 'call_completed',
+      callId: callData.id,
+      callStatus: callData.status,
+      hasVoicemail: !!callData.voicemail,
       processedAt: new Date().toISOString()
     };
   }

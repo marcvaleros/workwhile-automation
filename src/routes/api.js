@@ -72,6 +72,13 @@ router.post('/echo', (req, res) => {
 // OpenPhone Webhook Endpoint
 router.post('/webhooks/openphone', async (req, res) => {
   try {
+    // Immediate console logging for debugging
+    console.log('=== OpenPhone Webhook Received ===');
+    console.log('Headers:', req.headers);
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    console.log('IP:', req.ip);
+    console.log('===============================');
+
     // Log the incoming webhook
     logger.info('OpenPhone webhook received', {
       ip: req.ip,
@@ -80,30 +87,65 @@ router.post('/webhooks/openphone', async (req, res) => {
       bodySize: JSON.stringify(req.body).length
     });
 
-    // Validate webhook payload
-    const { event_type, data } = req.body;
+    // Validate webhook payload structure
+    const { id, object, apiVersion, createdAt, type: eventType, data } = req.body;
 
-    if (!event_type) {
-      logger.warn('OpenPhone webhook missing event_type', { body: req.body });
+    console.log('Extracted fields:', { id, eventType, hasData: !!data, hasDataObject: !!(data && data.object) });
+
+    if (!eventType || !data || !data.object) {
+      console.log('Validation failed - missing required fields');
+      logger.warn('OpenPhone webhook missing required fields', { body: req.body });
       return res.status(400).json({
-        error: 'Missing required field: event_type',
+        error: 'Missing required fields: event type or data object',
         received: req.body
       });
     }
 
+    // Extract call-specific data for call events
+    let callData = null;
+    if (eventType.startsWith('call.')) {
+      const call = data.object;
+      callData = {
+        callId: call.id,
+        from: call.from,
+        to: call.to,
+        direction: call.direction,
+        status: call.status,
+        createdAt: call.createdAt,
+        answeredAt: call.answeredAt,
+        completedAt: call.completedAt,
+        userId: call.userId,
+        phoneNumberId: call.phoneNumberId,
+        conversationId: call.conversationId,
+        voicemail: call.voicemail || null,
+        media: call.media || []
+      };
+      console.log('Call data extracted:', callData);
+    }
+
+    console.log('About to process webhook with webhookHandler...');
+
     // Process the webhook event
-    const result = await webhookHandler.processOpenPhoneEvent(data, event_type);
+    const result = await webhookHandler.processOpenPhoneEvent(data, eventType);
+
+    console.log('Webhook processed successfully, result:', result);
 
     // Respond with success
     res.status(200).json({
       status: 'success',
       message: 'Webhook processed successfully',
-      eventType: event_type,
+      eventId: id,
+      eventType,
+      eventCreatedAt: createdAt,
+      callData,
       result,
       processedAt: new Date().toISOString()
     });
 
   } catch (error) {
+    console.error('Error in webhook processing:', error);
+    console.error('Error stack:', error.stack);
+
     logger.error('Error processing OpenPhone webhook', {
       error: error.message,
       stack: error.stack,
