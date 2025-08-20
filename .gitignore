@@ -125,3 +125,7 @@ out/
 test-results/
 playwright-report/
 test-results.xml
+
+# Credentials
+credentials/
+

@@ -1,7 +1,4 @@
-const dotenv = require('dotenv');
-
-// Load environment variables
-dotenv.config();
+require('dotenv').config();
 
 const config = {
   // Server Configuration
